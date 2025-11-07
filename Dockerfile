@@ -1,33 +1,34 @@
-# =========================
-# Ubuntu Desktop giả Windows 10 có GUI + VNC qua Web
-# =========================
-FROM dorowu/ubuntu-desktop-lxde-vnc
+# Sử dụng image Ubuntu desktop có sẵn noVNC
+FROM dorowu/ubuntu-desktop-lxde-vnc:bionic
 
-LABEL maintainer="ChatGPT Windows Web Builder"
+LABEL maintainer="ChatGPT Render Win10 Web"
 
-# Cập nhật & cài các gói cần thiết
+# Cập nhật và cài gói cơ bản (không có wine ở đây)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         wget curl software-properties-common \
         xfce4-terminal \
         lxappearance \
-        fonts-liberation \
-        wine && \
+        fonts-liberation && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Đặt theme và wallpaper giống Windows 10
+# Cài WINE từ repo chính thức của WineHQ (phiên bản cho Ubuntu 18.04)
+RUN dpkg --add-architecture i386 && \
+    wget -nc https://dl.winehq.org/wine-builds/winehq.key && \
+    apt-key add winehq.key && \
+    add-apt-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ bionic main' && \
+    apt-get update && \
+    apt-get install -y --install-recommends winehq-stable && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Thêm hình nền Windows 10
 RUN mkdir -p /usr/share/backgrounds && \
     wget -O /usr/share/backgrounds/win10.jpg https://wallpapercave.com/wp/wp9644955.jpg && \
     echo '[Desktop Entry]\nType=Application\nExec=pcmanfm --set-wallpaper=/usr/share/backgrounds/win10.jpg\nHidden=false' > /etc/xdg/autostart/set-wallpaper.desktop
 
-# (Tuỳ chọn) Cài thêm app Windows giả lập
-RUN winecfg || true
-
-# Mở cổng VNC (5900) và web VNC (6080)
-EXPOSE 5900 6080
-
-# Render cần port web
+# Đặt cổng noVNC (web) và VNC server
+EXPOSE 6080 5900
 ENV PORT=6080
 
-# Lệnh mặc định khởi động GUI + noVNC
+# Khởi động GUI + VNC qua web
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
